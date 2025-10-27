@@ -136,4 +136,103 @@ UPDATE account SET money=money+500 WHERE `name`='B';
 COMMIT; -- 提交事务，持久化了！！！
 # rollback; -- 回滚
 SET autocommit = 1; -- 恢复自动提交
+
+
+-- 索引
+SHOW INDEX FROM student
+ 
+-- 增加全文索引
+ALTER TABLE school.student ADD FULLTEXT INDEX `studentname`(`studentname`)
+-- 分析执行状况
+EXPLAIN SELECT * FROM student  -- 19 非全文索引
+EXPLAIN SELECT * FROM student WHERE MATCH(studentname) AGAINST('刘')
+
+
+-- 插入百万条数据
+DROP FUNCTION IF EXISTS mock_data;
+
+DELIMITER $$ -- 写函数之前必须写，标志
+
+CREATE FUNCTION mock_data()
+RETURNS INT
+BEGIN
+    DECLARE num INT DEFAULT 1000000;
+    DECLARE i INT DEFAULT 0;
+    WHILE i < num DO
+	-- 插入语句
+	INSERT INTO app_user(`name`, `email`, `phone`, `gender`, `password`, `age`)
+	VALUES(CONCAT('用户', i), '24736743@qq.com', CONCAT('18', FLOOR(RAND()*(999999999-100000000)+100000000)),FLOOR(RAND()*2),UUID(), FLOOR(RAND()*100));
+	SET i = i + 1;
+    END WHILE;
+    RETURN i;
+END;
+
+SELECT mock_data();
+
+-- 1. 尝试删除旧函数（这部分没有问题）
+DROP FUNCTION IF EXISTS mock_data;
+
+-- 2. 设置新的分隔符为 $$
+DELIMITER $$ 
+
+-- 3. 创建函数
+CREATE FUNCTION mock_data()
+RETURNS INT
+BEGIN
+    DECLARE num INT DEFAULT 1000000;
+    DECLARE i INT DEFAULT 0;
+    
+    WHILE i < num DO
+        -- 插入语句（这里面的分号是函数内部语句的分隔符）
+        INSERT INTO app_user(`name`, `email`, `phone`, `gender`, `password`, `age`)
+        VALUES(
+            CONCAT('用户', i), 
+            '24736743@qq.com', 
+            CONCAT('18', FLOOR(RAND()*(999999999-100000000)+100000000)),
+            FLOOR(RAND()*2),
+            UUID(), 
+            FLOOR(RAND()*100)
+        );
+        
+        SET i = i + 1;
+    END WHILE;
+    
+    RETURN i;
+END$$ 
+-- ↑↑↑ 注意这里！必须使用新的分隔符 $$ 告知 MySQL 函数定义结束。
+
+-- 4. 恢复分隔符为默认的分号 ;
+DELIMITER ;
+
+-- 5. 调用函数
+SELECT mock_data();
+
+SELECT * FROM app_user WHERE `name` = '用户9999'
+
+
+
+
+
+-- CREATE INDEX 索引名 ON 表(字段)  加索引
+CREATE INDEX id_app_user_name ON app_user(`name`);
+
+-- 授权
+GRANT ALL PRIVILEGES ON *.* TO subei2;-- 除了给别人授权，其他都能看
+
+-- 撤消权限
+REVOKE 权限列表 ON 表名 FROM 用户名
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM 用户名    -- 撤销所有权限
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
  
